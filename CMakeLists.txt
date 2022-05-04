@@ -48,7 +48,7 @@ add_executable(screen
         )
 
 # pull in common dependencies
-target_link_libraries(screen pico_stdlib freertos)
+target_link_libraries(screen pico_stdlib freertos hardware_spi)
 
 # tell the pico library that you will be using usb serial and not an actual uart on the
 # processor
