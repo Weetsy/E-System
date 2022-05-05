@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#define LCD_2IN_WIDTH   240 //LCD width
-#define LCD_2IN_HEIGHT  320 //LCD height
+#define WIDTH   240 //LCD width
+#define HEIGHT  320 //LCD height
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +20,7 @@
 #include "hardware/spi.h"
 #include "pico/stdlib.h"
 #include "myAssert.h"
+#include "fonts.h"
 
 #include "common.h"
 
@@ -34,6 +35,9 @@
 #define BACKLIGHT 8 // Backlight pin
 
 // DC and RESET should be driven high
+
+// 153.6KB frame buffer
+uint16_t *FRAMEBUFFER; // Allocated on the heap
 
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
@@ -71,6 +75,10 @@ void hardware_init(void)
     gpio_put(DC_PIN, HIGH);
     gpio_put(RESET_PIN, HIGH);
 
+}
+
+void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
+    // Composite a string onto the frame buffer in a non-destructive manner
 }
 
 /*
@@ -264,15 +272,15 @@ void DEV_SPI_Write_nByte(uint8_t *data, uint16_t length) {
 void LCD_2IN_Clear(uint16_t Color)
 {
 	uint16_t i;
-	uint16_t image[LCD_2IN_WIDTH];
-	for(i=0;i<LCD_2IN_WIDTH;i++){
+	uint16_t image[WIDTH];
+	for(i=0;i<WIDTH;i++){
 		image[i] = Color>>8 | (Color&0xff)<<8;
 	}
 	uint8_t *p = (uint8_t *)(image);
-	LCD_2IN_SetWindow(0, 0, LCD_2IN_WIDTH, LCD_2IN_HEIGHT);
+	LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
 	gpio_put(DC_PIN, 1);
-	for(i = 0; i < LCD_2IN_HEIGHT; i++){
-		DEV_SPI_Write_nByte(p,LCD_2IN_WIDTH*2);
+	for(i = 0; i < HEIGHT; i++){
+		DEV_SPI_Write_nByte(p,WIDTH*2);
 	}
 }
 
@@ -295,6 +303,8 @@ int main()
     );
 
     LCD_2IN_Init();
+    FRAMEBUFFER = malloc(sizeof(uint16_t) * WIDTH * HEIGHT); // PLEASE WORK
+    myAssert(FRAMEBUFFER != NULL);
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 256, NULL, tskIDLE_PRIORITY, NULL);
     xTaskCreate(drawScreen, "draw", 600, NULL, 1, NULL);
