@@ -6,6 +6,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#define LCD_2IN_WIDTH   240 //LCD width
+#define LCD_2IN_HEIGHT  320 //LCD height
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -80,19 +83,197 @@ void heartbeat(void *notUsed)
 {
     while (true)
     {
-        uint16_t shorts[5] = {100, 200, 300, 400, 500};
-        int res = spi_write16_blocking(
-            spi0,
-            shorts,
-            5
-        );
-        printf("hb-tick: %d, wrote %d\n", 500, res); // 1Hz blinking
+        printf("hb-tick: %d\n", 500); // 1Hz blinking
         // Blink for 1Hz
         led_control(true);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         led_control(false);
         vTaskDelay(500 / portTICK_PERIOD_MS);
     }
+}
+
+void drawScreen(void *notUsed) {
+    // Need to normalize RGB values
+    uint8_t red, blue, green;
+    uint8_t redCap = 31;
+    uint8_t blueCap = 31;
+    uint8_t greenCap = 63;
+    red = redCap;
+    blue = blueCap;
+    green = greenCap;
+    uint16_t pixel = (blue | green<<5 | red<<11);
+    while (1) {
+        LCD_2IN_Clear(pixel);
+        vTaskDelay(1);
+    }
+}
+
+// Reset LCD
+static void LCD_2IN_Reset(void)
+{
+    sleep_ms(100);
+	gpio_put(RESET_PIN, LOW);
+	sleep_ms(100);
+	gpio_put(RESET_PIN, HIGH);
+	sleep_ms(100);
+}
+
+// Wrapper for writing command
+void LCD_2IN_Write_Command(uint8_t address) {
+    gpio_put(DC_PIN, LOW);
+    uint8_t bytes[1] = {address};
+        spi_write_blocking(
+            spi0,
+            bytes,
+            1
+        );
+}
+
+// Wrapper for writing data
+void LCD_2IN_WriteData_Byte(uint8_t byte) {
+    gpio_put(DC_PIN, HIGH);
+    uint8_t bytes[1] = {byte};
+        spi_write_blocking(
+            spi0,
+            bytes,
+            1
+        );
+}
+
+// Who the fuck knows what this does
+void LCD_2IN_Init(void)
+{
+	LCD_2IN_Reset();
+
+	LCD_2IN_Write_Command(0x36);
+	LCD_2IN_WriteData_Byte(0x00);
+
+	LCD_2IN_Write_Command(0x3A);
+	LCD_2IN_WriteData_Byte(0x05);
+
+	LCD_2IN_Write_Command(0x21);
+
+	LCD_2IN_Write_Command(0x2A);
+	LCD_2IN_WriteData_Byte(0x00);
+	LCD_2IN_WriteData_Byte(0x00);
+	LCD_2IN_WriteData_Byte(0x01);
+	LCD_2IN_WriteData_Byte(0x3F);
+
+	LCD_2IN_Write_Command(0x2B);
+	LCD_2IN_WriteData_Byte(0x00);
+	LCD_2IN_WriteData_Byte(0x00);
+	LCD_2IN_WriteData_Byte(0x00);
+	LCD_2IN_WriteData_Byte(0xEF);
+
+	LCD_2IN_Write_Command(0xB2);
+	LCD_2IN_WriteData_Byte(0x0C);
+	LCD_2IN_WriteData_Byte(0x0C);
+	LCD_2IN_WriteData_Byte(0x00);
+	LCD_2IN_WriteData_Byte(0x33);
+	LCD_2IN_WriteData_Byte(0x33);
+
+	LCD_2IN_Write_Command(0xB7);
+	LCD_2IN_WriteData_Byte(0x35);
+
+	LCD_2IN_Write_Command(0xBB);
+	LCD_2IN_WriteData_Byte(0x1F);
+
+	LCD_2IN_Write_Command(0xC0);
+	LCD_2IN_WriteData_Byte(0x2C);
+
+	LCD_2IN_Write_Command(0xC2);
+	LCD_2IN_WriteData_Byte(0x01);
+
+	LCD_2IN_Write_Command(0xC3);
+	LCD_2IN_WriteData_Byte(0x12);
+
+	LCD_2IN_Write_Command(0xC4);
+	LCD_2IN_WriteData_Byte(0x20);
+
+	LCD_2IN_Write_Command(0xC6);
+	LCD_2IN_WriteData_Byte(0x0F);
+
+	LCD_2IN_Write_Command(0xD0);
+	LCD_2IN_WriteData_Byte(0xA4);
+	LCD_2IN_WriteData_Byte(0xA1);
+
+	LCD_2IN_Write_Command(0xE0);
+	LCD_2IN_WriteData_Byte(0xD0);
+	LCD_2IN_WriteData_Byte(0x08);
+	LCD_2IN_WriteData_Byte(0x11);
+	LCD_2IN_WriteData_Byte(0x08);
+	LCD_2IN_WriteData_Byte(0x0C);
+	LCD_2IN_WriteData_Byte(0x15);
+	LCD_2IN_WriteData_Byte(0x39);
+	LCD_2IN_WriteData_Byte(0x33);
+	LCD_2IN_WriteData_Byte(0x50);
+	LCD_2IN_WriteData_Byte(0x36);
+	LCD_2IN_WriteData_Byte(0x13);
+	LCD_2IN_WriteData_Byte(0x14);
+	LCD_2IN_WriteData_Byte(0x29);
+	LCD_2IN_WriteData_Byte(0x2D);
+
+	LCD_2IN_Write_Command(0xE1);
+	LCD_2IN_WriteData_Byte(0xD0);
+	LCD_2IN_WriteData_Byte(0x08);
+	LCD_2IN_WriteData_Byte(0x10);
+	LCD_2IN_WriteData_Byte(0x08);
+	LCD_2IN_WriteData_Byte(0x06);
+	LCD_2IN_WriteData_Byte(0x06);
+	LCD_2IN_WriteData_Byte(0x39);
+	LCD_2IN_WriteData_Byte(0x44);
+	LCD_2IN_WriteData_Byte(0x51);
+	LCD_2IN_WriteData_Byte(0x0B);
+	LCD_2IN_WriteData_Byte(0x16);
+	LCD_2IN_WriteData_Byte(0x14);
+	LCD_2IN_WriteData_Byte(0x2F);
+	LCD_2IN_WriteData_Byte(0x31);
+	LCD_2IN_Write_Command(0x21);
+
+	LCD_2IN_Write_Command(0x11);
+
+	LCD_2IN_Write_Command(0x29);
+}
+
+void LCD_2IN_SetWindow(uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t  Yend)
+{
+	LCD_2IN_Write_Command(0x2a);
+	LCD_2IN_WriteData_Byte(Xstart >>8);
+	LCD_2IN_WriteData_Byte(Xstart & 0xff);
+	LCD_2IN_WriteData_Byte((Xend - 1) >> 8);
+	LCD_2IN_WriteData_Byte((Xend - 1) & 0xff);
+
+	LCD_2IN_Write_Command(0x2b);
+	LCD_2IN_WriteData_Byte(Ystart >>8);
+	LCD_2IN_WriteData_Byte(Ystart & 0xff);
+	LCD_2IN_WriteData_Byte((Yend - 1) >> 8);
+	LCD_2IN_WriteData_Byte((Yend - 1) & 0xff);
+
+	LCD_2IN_Write_Command(0x2C);
+}
+
+void DEV_SPI_Write_nByte(uint8_t *data, uint16_t length) {
+    gpio_put(DC_PIN, HIGH);
+        spi_write_blocking(
+            spi0,
+            data,
+            length
+        );
+}
+
+void LCD_2IN_Clear(uint16_t Color)
+{
+	uint16_t i;
+	uint16_t image[LCD_2IN_WIDTH];
+	for(i=0;i<LCD_2IN_WIDTH;i++){
+		image[i] = Color>>8 | (Color&0xff)<<8;
+	}
+	uint8_t *p = (uint8_t *)(image);
+	LCD_2IN_SetWindow(0, 0, LCD_2IN_WIDTH, LCD_2IN_HEIGHT);
+	gpio_put(DC_PIN, 1);
+	for(i = 0; i < LCD_2IN_HEIGHT; i++){
+		DEV_SPI_Write_nByte(p,LCD_2IN_WIDTH*2);
+	}
 }
 
 int main()
@@ -103,19 +284,20 @@ int main()
 
     // Initialize hardware
     hardware_init();
-
     // Initialize SPI
-    spi_init(spi0, 1000); // SPI0 at 1kHz
+    spi_init(spi0, 145000000); // SPI0 at 1kHz
     spi_set_format(
         spi0,
-        16, // 16 bits per transfer
+        8, // 8 bits per transfer
         0x00000080,
         0x00000040,
         SPI_MSB_FIRST
     );
 
+    LCD_2IN_Init();
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 256, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(drawScreen, "draw", 600, NULL, 1, NULL);
     //xTaskCreate(gpioVerifyReadWrite, "verify", 256, NULL, tskIDLE_PRIORITY, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
