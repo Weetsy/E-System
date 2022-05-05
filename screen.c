@@ -79,6 +79,27 @@ void hardware_init(void)
 
 void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
     // Composite a string onto the frame buffer in a non-destructive manner
+	// Assume the 8 by 8 pixel format
+	int char_index = 0;
+	int currentChar = 0;
+	if (phrase == NULL) return;
+	char current = phrase[char_index];
+	uint8_t mask;
+	uint8_t phase = 1;
+	while (current != 0) {
+		// Draw the current char to frame buffer
+		// Get the bitmask for current row of pixels
+		mask = font[current];
+
+		for (int i = 0; i < 8; i++) {
+
+		}
+
+
+
+
+		current = phrase[index];
+	}
 }
 
 /*
@@ -111,7 +132,7 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     uint16_t pixel = (blue | green<<5 | red<<11);
     while (1) {
-        LCD_2IN_Clear(pixel);
+        //LCD_2IN_Clear(pixel);
         vTaskDelay(1);
     }
 }
@@ -305,6 +326,7 @@ int main()
     LCD_2IN_Init();
     FRAMEBUFFER = malloc(sizeof(uint16_t) * WIDTH * HEIGHT); // PLEASE WORK
     myAssert(FRAMEBUFFER != NULL);
+	LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 256, NULL, tskIDLE_PRIORITY, NULL);
     xTaskCreate(drawScreen, "draw", 600, NULL, 1, NULL);
