@@ -100,18 +100,23 @@ void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
 			mask = font[getFont(current) * 8 + i];
 			// Loop through each column bit for mask
 			for (int j = 0; j < 8; j++) {
-				//for (int k = 0; k < scale; k++) {
+				for (int k = 0; k < scale; k++) {
+					for (int l = 0; l < scale; l++) {
+						// Perform wrap-arounds if out of bounds
+						int x = ((scale * (posX + j + (phase * 8))) + k) % WIDTH;
+						int y = ((scale * (posY + i)) + l) % HEIGHT;
+						int index = x + (y * WIDTH);
+						FRAMEBUFFER[index] = (mask & 1<<(7-j)) ? 0xF00F : 0x0;
+					}
+				}
 
-				//}
-				// Perform wrap-arounds if out of bounds
-				int x = (posX + j + (phase * 8)) % WIDTH;
-				int y = (posY + i) % HEIGHT;
-				FRAMEBUFFER[x + (y * WIDTH)] = (mask & 1<<(7-j)) ? 0xF00F : 0x0;
 			}
         }
         phase++;
 		current = phrase[char_index++];
 	}
+	// perform matrix multiplication for scale on matrix section
+
 }
 
 /*
@@ -145,7 +150,9 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-	drawString("HELLO ALEC JACKSON", 10, 100, 1);
+	drawString("HELLO", 10, 20, 2);
+	drawString("ALEC", 10, 40, 2);
+	drawString("JACKSON", 10, 60, 2);
 
 	drawString("This is a test {}!", 10, 280, 1);
     while (1) {
@@ -358,7 +365,7 @@ int main()
     LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 256, NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL);
+    xTaskCreate(drawScreen, "draw", 600, NULL, 1, NULL);
     //xTaskCreate(gpioVerifyReadWrite, "verify", 256, NULL, tskIDLE_PRIORITY, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
