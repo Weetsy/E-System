@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <FreeRTOS.h>
 #include <task.h>
@@ -33,6 +34,8 @@
 #define DC_PIN 6 // Extra DC pin for display
 #define RESET_PIN 7 // Drive this pin LOW to reset display
 #define BACKLIGHT 8 // Backlight pin
+
+void drawFrameBuffer(); // Prototype
 
 // DC and RESET should be driven high
 
@@ -74,31 +77,40 @@ void hardware_init(void)
 
     gpio_put(DC_PIN, HIGH);
     gpio_put(RESET_PIN, HIGH);
+}
 
+// Get a font bitmap for a specific character
+int getFont(char c) {
+	return c - 32;
 }
 
 void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
     // Composite a string onto the frame buffer in a non-destructive manner
-	// Assume the 8 by 8 pixel format
-	int char_index = 0;
-	int currentChar = 0;
-	if (phrase == NULL) return;
-	char current = phrase[char_index];
-	uint8_t mask;
-	uint8_t phase = 1;
-	while (current != 0) {
-		// Draw the current char to frame buffer
-		// Get the bitmask for current row of pixels
-		mask = font[current];
+    // Assume the 8 by 8 pixel format
+    int char_index = 0;
+    if (phrase == NULL) return;
+    char current = phrase[char_index++];
+    uint8_t mask;
+    uint8_t phase = 1;
+    while (current != 0) {
+        // Draw the current char to frame buffer
+		// Loop through all 8 lines for each character
+        for (int i = 0; i < 8; i++) {
+			// Get the bitmask for current row of pixels
+			mask = font[getFont(current) * 8 + i];
+			// Loop through each column bit for mask
+			for (int j = 0; j < 8; j++) {
+				//for (int k = 0; k < scale; k++) {
 
-		for (int i = 0; i < 8; i++) {
-
-		}
-
-
-
-
-		current = phrase[index];
+				//}
+				// Perform wrap-arounds if out of bounds
+				int x = (posX + j + (phase * 8)) % WIDTH;
+				int y = (posY + i) % HEIGHT;
+				FRAMEBUFFER[x + (y * WIDTH)] = (mask & 1<<(7-j)) ? 0xF00F : 0x0;
+			}
+        }
+        phase++;
+		current = phrase[char_index++];
 	}
 }
 
@@ -122,7 +134,8 @@ void heartbeat(void *notUsed)
 }
 
 void drawScreen(void *notUsed) {
-    // Need to normalize RGB values
+    /*
+	// Need to normalize RGB values
     uint8_t red, blue, green;
     uint8_t redCap = 31;
     uint8_t blueCap = 31;
@@ -130,10 +143,15 @@ void drawScreen(void *notUsed) {
     red = redCap;
     blue = blueCap;
     green = greenCap;
-    uint16_t pixel = (blue | green<<5 | red<<11);
+    //uint16_t pixel = (blue | green<<5 | red<<11);
+	*/
+	drawString("HELLO ALEC JACKSON", 10, 100, 1);
+
+	drawString("This is a test {}!", 10, 280, 1);
     while (1) {
-        //LCD_2IN_Clear(pixel);
-        vTaskDelay(1);
+		printf("Drawing frame buffer\n");
+        drawFrameBuffer();
+        vTaskDelay(100);
     }
 }
 
@@ -141,10 +159,10 @@ void drawScreen(void *notUsed) {
 static void LCD_2IN_Reset(void)
 {
     sleep_ms(100);
-	gpio_put(RESET_PIN, LOW);
-	sleep_ms(100);
-	gpio_put(RESET_PIN, HIGH);
-	sleep_ms(100);
+    gpio_put(RESET_PIN, LOW);
+    sleep_ms(100);
+    gpio_put(RESET_PIN, HIGH);
+    sleep_ms(100);
 }
 
 // Wrapper for writing command
@@ -172,116 +190,116 @@ void LCD_2IN_WriteData_Byte(uint8_t byte) {
 // Who the fuck knows what this does
 void LCD_2IN_Init(void)
 {
-	LCD_2IN_Reset();
+    LCD_2IN_Reset();
 
-	LCD_2IN_Write_Command(0x36);
-	LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_Write_Command(0x36);
+    LCD_2IN_WriteData_Byte(0x00);
 
-	LCD_2IN_Write_Command(0x3A);
-	LCD_2IN_WriteData_Byte(0x05);
+    LCD_2IN_Write_Command(0x3A);
+    LCD_2IN_WriteData_Byte(0x05);
 
-	LCD_2IN_Write_Command(0x21);
+    LCD_2IN_Write_Command(0x21);
 
-	LCD_2IN_Write_Command(0x2A);
-	LCD_2IN_WriteData_Byte(0x00);
-	LCD_2IN_WriteData_Byte(0x00);
-	LCD_2IN_WriteData_Byte(0x01);
-	LCD_2IN_WriteData_Byte(0x3F);
+    LCD_2IN_Write_Command(0x2A);
+    LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_WriteData_Byte(0x01);
+    LCD_2IN_WriteData_Byte(0x3F);
 
-	LCD_2IN_Write_Command(0x2B);
-	LCD_2IN_WriteData_Byte(0x00);
-	LCD_2IN_WriteData_Byte(0x00);
-	LCD_2IN_WriteData_Byte(0x00);
-	LCD_2IN_WriteData_Byte(0xEF);
+    LCD_2IN_Write_Command(0x2B);
+    LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_WriteData_Byte(0xEF);
 
-	LCD_2IN_Write_Command(0xB2);
-	LCD_2IN_WriteData_Byte(0x0C);
-	LCD_2IN_WriteData_Byte(0x0C);
-	LCD_2IN_WriteData_Byte(0x00);
-	LCD_2IN_WriteData_Byte(0x33);
-	LCD_2IN_WriteData_Byte(0x33);
+    LCD_2IN_Write_Command(0xB2);
+    LCD_2IN_WriteData_Byte(0x0C);
+    LCD_2IN_WriteData_Byte(0x0C);
+    LCD_2IN_WriteData_Byte(0x00);
+    LCD_2IN_WriteData_Byte(0x33);
+    LCD_2IN_WriteData_Byte(0x33);
 
-	LCD_2IN_Write_Command(0xB7);
-	LCD_2IN_WriteData_Byte(0x35);
+    LCD_2IN_Write_Command(0xB7);
+    LCD_2IN_WriteData_Byte(0x35);
 
-	LCD_2IN_Write_Command(0xBB);
-	LCD_2IN_WriteData_Byte(0x1F);
+    LCD_2IN_Write_Command(0xBB);
+    LCD_2IN_WriteData_Byte(0x1F);
 
-	LCD_2IN_Write_Command(0xC0);
-	LCD_2IN_WriteData_Byte(0x2C);
+    LCD_2IN_Write_Command(0xC0);
+    LCD_2IN_WriteData_Byte(0x2C);
 
-	LCD_2IN_Write_Command(0xC2);
-	LCD_2IN_WriteData_Byte(0x01);
+    LCD_2IN_Write_Command(0xC2);
+    LCD_2IN_WriteData_Byte(0x01);
 
-	LCD_2IN_Write_Command(0xC3);
-	LCD_2IN_WriteData_Byte(0x12);
+    LCD_2IN_Write_Command(0xC3);
+    LCD_2IN_WriteData_Byte(0x12);
 
-	LCD_2IN_Write_Command(0xC4);
-	LCD_2IN_WriteData_Byte(0x20);
+    LCD_2IN_Write_Command(0xC4);
+    LCD_2IN_WriteData_Byte(0x20);
 
-	LCD_2IN_Write_Command(0xC6);
-	LCD_2IN_WriteData_Byte(0x0F);
+    LCD_2IN_Write_Command(0xC6);
+    LCD_2IN_WriteData_Byte(0x0F);
 
-	LCD_2IN_Write_Command(0xD0);
-	LCD_2IN_WriteData_Byte(0xA4);
-	LCD_2IN_WriteData_Byte(0xA1);
+    LCD_2IN_Write_Command(0xD0);
+    LCD_2IN_WriteData_Byte(0xA4);
+    LCD_2IN_WriteData_Byte(0xA1);
 
-	LCD_2IN_Write_Command(0xE0);
-	LCD_2IN_WriteData_Byte(0xD0);
-	LCD_2IN_WriteData_Byte(0x08);
-	LCD_2IN_WriteData_Byte(0x11);
-	LCD_2IN_WriteData_Byte(0x08);
-	LCD_2IN_WriteData_Byte(0x0C);
-	LCD_2IN_WriteData_Byte(0x15);
-	LCD_2IN_WriteData_Byte(0x39);
-	LCD_2IN_WriteData_Byte(0x33);
-	LCD_2IN_WriteData_Byte(0x50);
-	LCD_2IN_WriteData_Byte(0x36);
-	LCD_2IN_WriteData_Byte(0x13);
-	LCD_2IN_WriteData_Byte(0x14);
-	LCD_2IN_WriteData_Byte(0x29);
-	LCD_2IN_WriteData_Byte(0x2D);
+    LCD_2IN_Write_Command(0xE0);
+    LCD_2IN_WriteData_Byte(0xD0);
+    LCD_2IN_WriteData_Byte(0x08);
+    LCD_2IN_WriteData_Byte(0x11);
+    LCD_2IN_WriteData_Byte(0x08);
+    LCD_2IN_WriteData_Byte(0x0C);
+    LCD_2IN_WriteData_Byte(0x15);
+    LCD_2IN_WriteData_Byte(0x39);
+    LCD_2IN_WriteData_Byte(0x33);
+    LCD_2IN_WriteData_Byte(0x50);
+    LCD_2IN_WriteData_Byte(0x36);
+    LCD_2IN_WriteData_Byte(0x13);
+    LCD_2IN_WriteData_Byte(0x14);
+    LCD_2IN_WriteData_Byte(0x29);
+    LCD_2IN_WriteData_Byte(0x2D);
 
-	LCD_2IN_Write_Command(0xE1);
-	LCD_2IN_WriteData_Byte(0xD0);
-	LCD_2IN_WriteData_Byte(0x08);
-	LCD_2IN_WriteData_Byte(0x10);
-	LCD_2IN_WriteData_Byte(0x08);
-	LCD_2IN_WriteData_Byte(0x06);
-	LCD_2IN_WriteData_Byte(0x06);
-	LCD_2IN_WriteData_Byte(0x39);
-	LCD_2IN_WriteData_Byte(0x44);
-	LCD_2IN_WriteData_Byte(0x51);
-	LCD_2IN_WriteData_Byte(0x0B);
-	LCD_2IN_WriteData_Byte(0x16);
-	LCD_2IN_WriteData_Byte(0x14);
-	LCD_2IN_WriteData_Byte(0x2F);
-	LCD_2IN_WriteData_Byte(0x31);
-	LCD_2IN_Write_Command(0x21);
+    LCD_2IN_Write_Command(0xE1);
+    LCD_2IN_WriteData_Byte(0xD0);
+    LCD_2IN_WriteData_Byte(0x08);
+    LCD_2IN_WriteData_Byte(0x10);
+    LCD_2IN_WriteData_Byte(0x08);
+    LCD_2IN_WriteData_Byte(0x06);
+    LCD_2IN_WriteData_Byte(0x06);
+    LCD_2IN_WriteData_Byte(0x39);
+    LCD_2IN_WriteData_Byte(0x44);
+    LCD_2IN_WriteData_Byte(0x51);
+    LCD_2IN_WriteData_Byte(0x0B);
+    LCD_2IN_WriteData_Byte(0x16);
+    LCD_2IN_WriteData_Byte(0x14);
+    LCD_2IN_WriteData_Byte(0x2F);
+    LCD_2IN_WriteData_Byte(0x31);
+    LCD_2IN_Write_Command(0x21);
 
-	LCD_2IN_Write_Command(0x11);
+    LCD_2IN_Write_Command(0x11);
 
-	LCD_2IN_Write_Command(0x29);
+    LCD_2IN_Write_Command(0x29);
 }
 
 void LCD_2IN_SetWindow(uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t  Yend)
 {
-	LCD_2IN_Write_Command(0x2a);
-	LCD_2IN_WriteData_Byte(Xstart >>8);
-	LCD_2IN_WriteData_Byte(Xstart & 0xff);
-	LCD_2IN_WriteData_Byte((Xend - 1) >> 8);
-	LCD_2IN_WriteData_Byte((Xend - 1) & 0xff);
+    LCD_2IN_Write_Command(0x2a);
+    LCD_2IN_WriteData_Byte(Xstart >>8);
+    LCD_2IN_WriteData_Byte(Xstart & 0xff);
+    LCD_2IN_WriteData_Byte((Xend - 1) >> 8);
+    LCD_2IN_WriteData_Byte((Xend - 1) & 0xff);
 
-	LCD_2IN_Write_Command(0x2b);
-	LCD_2IN_WriteData_Byte(Ystart >>8);
-	LCD_2IN_WriteData_Byte(Ystart & 0xff);
-	LCD_2IN_WriteData_Byte((Yend - 1) >> 8);
-	LCD_2IN_WriteData_Byte((Yend - 1) & 0xff);
+    LCD_2IN_Write_Command(0x2b);
+    LCD_2IN_WriteData_Byte(Ystart >>8);
+    LCD_2IN_WriteData_Byte(Ystart & 0xff);
+    LCD_2IN_WriteData_Byte((Yend - 1) >> 8);
+    LCD_2IN_WriteData_Byte((Yend - 1) & 0xff);
 
-	LCD_2IN_Write_Command(0x2C);
+    LCD_2IN_Write_Command(0x2C);
 }
 
-void DEV_SPI_Write_nByte(uint8_t *data, uint16_t length) {
+void DEV_SPI_Write_nByte(uint8_t *data, uint32_t length) {
     gpio_put(DC_PIN, HIGH);
         spi_write_blocking(
             spi0,
@@ -292,17 +310,27 @@ void DEV_SPI_Write_nByte(uint8_t *data, uint16_t length) {
 
 void LCD_2IN_Clear(uint16_t Color)
 {
-	uint16_t i;
-	uint16_t image[WIDTH];
-	for(i=0;i<WIDTH;i++){
-		image[i] = Color>>8 | (Color&0xff)<<8;
-	}
-	uint8_t *p = (uint8_t *)(image);
-	LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
-	gpio_put(DC_PIN, 1);
-	for(i = 0; i < HEIGHT; i++){
-		DEV_SPI_Write_nByte(p,WIDTH*2);
-	}
+    uint16_t i;
+    uint16_t image[WIDTH];
+    for(i=0;i<WIDTH;i++){
+        image[i] = Color>>8 | (Color&0xff)<<8;
+    }
+    uint8_t *p = (uint8_t *)(image);
+    LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
+    gpio_put(DC_PIN, 1);
+	for (int i = 0; i < WIDTH; )
+    for(i = 0; i < HEIGHT; i++){
+        DEV_SPI_Write_nByte(p,WIDTH*2);
+    }
+}
+
+// Draws the frame buffer to the display
+void drawFrameBuffer()
+{
+    LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
+    for(int i = 0; i < HEIGHT; i++){
+        DEV_SPI_Write_nByte((uint8_t *)FRAMEBUFFER, WIDTH * HEIGHT * 2);
+    }
 }
 
 int main()
@@ -325,11 +353,12 @@ int main()
 
     LCD_2IN_Init();
     FRAMEBUFFER = malloc(sizeof(uint16_t) * WIDTH * HEIGHT); // PLEASE WORK
+	memset(FRAMEBUFFER, 0, sizeof(uint16_t) * WIDTH * HEIGHT);
     myAssert(FRAMEBUFFER != NULL);
-	LCD_2IN_Clear(0xFFFF);
+    LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 256, NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(drawScreen, "draw", 600, NULL, 1, NULL);
+    xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL);
     //xTaskCreate(gpioVerifyReadWrite, "verify", 256, NULL, tskIDLE_PRIORITY, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
