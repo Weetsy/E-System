@@ -103,9 +103,9 @@ void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
 				for (int k = 0; k < scale; k++) {
 					for (int l = 0; l < scale; l++) {
 						// Perform wrap-arounds if out of bounds
-						int x = ((scale * (posX + j + (phase * 8))) + k) % WIDTH;
+						int x = ((WIDTH - ((scale * (posX + j + (phase * 8))) + k)) % WIDTH) + (HEIGHT - WIDTH);
 						int y = ((scale * (posY + i)) + l) % HEIGHT;
-						int index = x + (y * WIDTH);
+						int index = y + (x * WIDTH);
 						FRAMEBUFFER[index] = (mask & 1<<(7-j)) ? 0xF00F : 0x0;
 					}
 				}
@@ -150,11 +150,11 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-	drawString("HELLO", 10, 20, 2);
-	drawString("ALEC", 10, 40, 2);
-	drawString("JACKSON", 10, 60, 2);
+	drawString("HELLO", 0, 20, 2);
+	drawString("ALEC", 0, 40, 2);
+	drawString("JACKSON", 0, 60, 2);
 
-	drawString("This is a test {}!", 10, 280, 1);
+	drawString("This is a test {}!", 0, 180, 1);
     while (1) {
 		printf("Drawing frame buffer\n");
         drawFrameBuffer();
