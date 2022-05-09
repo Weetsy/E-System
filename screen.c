@@ -150,11 +150,9 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-	drawString("HELLO", 0, 20, 2);
-	drawString("ALEC", 0, 40, 2);
-	drawString("JACKSON", 0, 60, 2);
-
-	drawString("This is a test {}!", 0, 180, 1);
+	drawString("MPH", 6, 3, 6);
+	drawString("69", 10, 15, 6);
+	drawString("Battery: 71%", 0, 112, 2);
     while (1) {
 		printf("Drawing frame buffer\n");
         drawFrameBuffer();
