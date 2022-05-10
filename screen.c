@@ -16,6 +16,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
+#include <queue.h>
 
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
@@ -35,12 +36,17 @@
 #define RESET_PIN 7 // Drive this pin LOW to reset display
 #define BACKLIGHT 8 // Backlight pin
 
+#define SW1 14
+#define SW2 15
+
 void drawFrameBuffer(); // Prototype
 
 // DC and RESET should be driven high
 
 // 153.6KB frame buffer
-uint16_t *FRAMEBUFFER; // Allocated on the heap
+uint16_t FRAMEBUFFER[WIDTH * HEIGHT];
+QueueHandle_t queue;
+int speed;
 
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
@@ -51,12 +57,6 @@ void led_control(bool isOn)
     isOn ? gpio_put(LED_PIN, HIGH) : gpio_put(LED_PIN, LOW);
 }
 
-// Callback function for button presses
-void gpio_int_callback(uint gpio, uint32_t events_unused)
-{
-
-}
-
 // Initialize GPIO pins on pico board
 void hardware_init(void)
 {
@@ -64,11 +64,19 @@ void hardware_init(void)
     gpio_init(LED_PIN);
     gpio_init(RESET_PIN);
     gpio_init(DC_PIN);
+    gpio_init(SW1);
+    gpio_init(SW2);
 
     // Set up GPIO pins as output from pico
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_set_dir(RESET_PIN, GPIO_OUT);
     gpio_set_dir(DC_PIN, GPIO_OUT);
+
+    gpio_set_dir(SW1, GPIO_IN);
+    gpio_set_dir(SW2, GPIO_IN);
+
+    gpio_pull_up(SW1);
+    gpio_pull_up(SW2);
 
     gpio_set_function(CS_PIN, GPIO_FUNC_SPI);
     gpio_set_function(CLK_PIN, GPIO_FUNC_SPI);
@@ -150,10 +158,13 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-	drawString("MPH", 6, 3, 6);
-	drawString("69", 10, 15, 6);
-	drawString("Battery: 71%", 0, 112, 2);
+	char currentSpeed[10];
     while (1) {
+        memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
+        sprintf(currentSpeed, "%d", speed);
+        drawString("MPH", 6, 3, 6);
+    	drawString(currentSpeed, 10, 15, 6);
+    	drawString("Battery: 71%", 0, 112, 2);
 		printf("Drawing frame buffer\n");
         drawFrameBuffer();
         vTaskDelay(100);
@@ -333,8 +344,14 @@ void LCD_2IN_Clear(uint16_t Color)
 void drawFrameBuffer()
 {
     LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
-    for(int i = 0; i < HEIGHT; i++){
-        DEV_SPI_Write_nByte((uint8_t *)FRAMEBUFFER, WIDTH * HEIGHT * 2);
+    DEV_SPI_Write_nByte((uint8_t *)FRAMEBUFFER, WIDTH * HEIGHT * 2);
+}
+
+void changeSpeed(void *notUsed) {
+    while (1) {
+        if (!gpio_get(SW1)) speed--;
+        if (!gpio_get(SW2)) speed++;
+        vTaskDelay(100);
     }
 }
 
@@ -343,7 +360,6 @@ int main()
     // Initialize stdio
     stdio_init_all();
     printf("lab2 Hello!\n");
-
     // Initialize hardware
     hardware_init();
     // Initialize SPI
@@ -357,14 +373,12 @@ int main()
     );
 
     LCD_2IN_Init();
-    FRAMEBUFFER = malloc(sizeof(uint16_t) * WIDTH * HEIGHT); // PLEASE WORK
 	memset(FRAMEBUFFER, 0, sizeof(uint16_t) * WIDTH * HEIGHT);
-    myAssert(FRAMEBUFFER != NULL);
     LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
-    xTaskCreate(heartbeat, "heartbeat", 256, NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(drawScreen, "draw", 600, NULL, 1, NULL);
-    //xTaskCreate(gpioVerifyReadWrite, "verify", 256, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL);
+    xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
 
