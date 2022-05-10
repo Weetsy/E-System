@@ -46,6 +46,7 @@ add_executable(screen
         screen.c
         myAssert.c
         fonts.c
+        LCD_2IN.c
         )
 
 # pull in common dependencies
