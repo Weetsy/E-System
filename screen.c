@@ -19,6 +19,9 @@
 
 #define SW1 14
 #define SW2 15
+#define MAG_SW 16 // Magnetic switch for RPM
+#define WHEEL_SIZE 26 // 26 inch wheels
+#define PI 3.14159265359
 
 void drawFrameBuffer(); // Prototype
 
@@ -26,7 +29,7 @@ void drawFrameBuffer(); // Prototype
 
 // 153.6KB frame buffer
 uint16_t FRAMEBUFFER[WIDTH * HEIGHT];
-QueueHandle_t queue;
+SemaphoreHandle_t sem;
 int speed;
 
 /*
@@ -38,6 +41,33 @@ void led_control(bool isOn)
     isOn ? gpio_put(LED_PIN, HIGH) : gpio_put(LED_PIN, LOW);
 }
 
+void gpio_int_callback(uint gpio, uint32_t events_unused) {
+    static uint32_t checkTime;
+    uint32_t currentTime = time_us_32();
+    uint32_t guardTime = 65000; // 65000ms (For now)
+    if (checkTime + guardTime > currentTime) return;
+    checkTime = currentTime; // Update checkTime
+    BaseType_t res;
+    switch (gpio) {
+        case SW1:
+            speed++;
+            break;
+        case SW2:
+            speed--;
+            break;
+        case MAG_SW:
+            // Send magnetic switch signal to queue
+            res = xSemaphoreGiveFromISR(sem, NULL);
+            if (res == errQUEUE_FULL) {
+                printf("Error: Semaphore give error\n");
+            }
+            printf("Giving semaphore\n");
+            break;
+        default:
+            break;
+    }
+}
+
 // Initialize GPIO pins on pico board
 void hardware_init(void)
 {
@@ -47,6 +77,7 @@ void hardware_init(void)
     gpio_init(DC_PIN);
     gpio_init(SW1);
     gpio_init(SW2);
+    gpio_init(MAG_SW);
 
     // Set up GPIO pins as output from pico
     gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -55,6 +86,7 @@ void hardware_init(void)
 
     gpio_set_dir(SW1, GPIO_IN);
     gpio_set_dir(SW2, GPIO_IN);
+    gpio_set_dir(MAG_SW, GPIO_IN);
 
     gpio_pull_up(SW1);
     gpio_pull_up(SW2);
@@ -66,6 +98,10 @@ void hardware_init(void)
 
     gpio_put(DC_PIN, HIGH);
     gpio_put(RESET_PIN, HIGH);
+
+    gpio_set_irq_enabled_with_callback(SW1, GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
+    gpio_set_irq_enabled_with_callback(SW2, GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
+    gpio_set_irq_enabled_with_callback(MAG_SW, GPIO_IRQ_EDGE_RISE, true, &gpio_int_callback);
 }
 
 // Get a font bitmap for a specific character
@@ -73,14 +109,14 @@ int getFont(char c) {
 	return c - 32;
 }
 
-void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
+void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale, uint16_t fgColor, uint16_t bgColor) {
     // Composite a string onto the frame buffer in a non-destructive manner
     // Assume the 8 by 8 pixel format
     int char_index = 0;
     if (phrase == NULL) return;
     char current = phrase[char_index++];
     uint8_t mask;
-    uint8_t phase = 1;
+    uint8_t phase = 0;
     while (current != 0) {
         // Draw the current char to frame buffer
 		// Loop through all 8 lines for each character
@@ -95,7 +131,11 @@ void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale) {
 						int x = ((WIDTH - ((scale * (posX + j + (phase * 8))) + k)) % WIDTH) + (HEIGHT - WIDTH);
 						int y = ((scale * (posY + i)) + l) % HEIGHT;
 						int index = y + (x * WIDTH);
-						FRAMEBUFFER[index] = (mask & 1<<(7-j)) ? 0xF00F : 0x0;
+                        // Band-aid solution
+                        if (index < 0 || index >= WIDTH * HEIGHT) {
+                            continue;
+                        }
+						FRAMEBUFFER[index] = (mask & 1<<(7-j)) ? fgColor : bgColor;
 					}
 				}
 
@@ -143,10 +183,10 @@ void drawScreen(void *notUsed) {
     while (1) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
         sprintf(currentSpeed, "%d", speed);
-        drawString("MPH", 6, 3, 6);
-    	drawString(currentSpeed, 10, 15, 6);
-    	drawString("Battery: 71%", 0, 112, 2);
-		printf("Drawing frame buffer\n");
+        drawString("MPH", 70, 3, 3, 0xF00F, 0);
+    	drawString(currentSpeed, 0, 5, 10, 0xFFFF, 0);
+    	drawString("Battery: 71%", 0, 112, 2, 0x000F, 0);
+        drawString("Power Output: 120W", 0, 100, 2, 0x0FF0, 0);
         drawFrameBuffer();
         vTaskDelay(100);
     }
@@ -167,10 +207,30 @@ void changeSpeed(void *notUsed) {
     }
 }
 
+void getSpeed(void *notUsed) {
+    static uint32_t lastPass;
+    uint32_t currentTime;
+    while (1) {
+        // Receive magnetic switch signals from queue
+        xSemaphoreTake(sem, portMAX_DELAY);
+        printf("Received semaphore\n");
+        currentTime = time_us_32();
+        // Calculate RPM based on lastPass to now
+        double deltaTime = (currentTime - lastPass) / (1000.0 * 1000.0); // In seconds
+        // We did one revolution whenever this function runs
+        double distance = (PI * WHEEL_SIZE) / (12.0 * 5280.0); // Distance in miles
+        // Convert time to hours
+        double hours = deltaTime / 3600.0;
+        speed = (uint32_t) (distance / hours);
+        lastPass = currentTime;
+    }
+}
+
 int main()
 {
     // Initialize stdio
     stdio_init_all();
+    sleep_ms(4000);
     printf("lab2 Hello!\n");
     // Initialize hardware
     hardware_init();
@@ -187,10 +247,14 @@ int main()
     LCD_2IN_Init();
 	memset(FRAMEBUFFER, 0, sizeof(uint16_t) * WIDTH * HEIGHT);
     LCD_2IN_Clear(0xFFFF);
+
+    sem = xSemaphoreCreateCounting(20, 5);
+    myAssert(sem != NULL);
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL);
-    xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
+    xTaskCreate(drawScreen, "draw", 200, NULL, 1, NULL);
+    xTaskCreate(getSpeed, "speed", 128, NULL, 2, NULL);
+    //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
 
