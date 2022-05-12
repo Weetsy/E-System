@@ -37,7 +37,7 @@ void LCD_2IN_WriteData_Byte(uint8_t byte) {
         );
 }
 
-// Who the fuck knows what this does
+// Who the bleep knows what this does
 void LCD_2IN_Init(void)
 {
     LCD_2IN_Reset();
