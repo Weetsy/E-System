@@ -21,7 +21,7 @@
 #define SW2 15
 #define MAG_SW 16 // Magnetic switch for RPM
 #define WHEEL_SIZE 26 // 26 inch wheels
-#define PI 3.14159265359
+#define PIS 31415 // PI * 1,000,000
 
 void drawFrameBuffer(); // Prototype
 
@@ -29,9 +29,8 @@ void drawFrameBuffer(); // Prototype
 
 // 153.6KB frame buffer
 uint16_t FRAMEBUFFER[WIDTH * HEIGHT];
-QueueHandle_t queue;
-int speed;
-uint32_t modifyTime;
+uint32_t speed;
+uint32_t samples;
 
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
@@ -49,8 +48,6 @@ void gpio_int_callback(uint gpio, uint32_t events_unused) {
     uint32_t guardTime = 65000; // 65ms (For now)
     if (checkTime + guardTime > currentTime) return;
     checkTime = currentTime; // Update checkTime
-    BaseType_t res;
-    uint8_t item = 1;
     switch (gpio) {
         case SW1:
             speed++;
@@ -59,10 +56,7 @@ void gpio_int_callback(uint gpio, uint32_t events_unused) {
             speed--;
             break;
         case MAG_SW:
-            modifyTime = currentTime;
-            // Send magnetic switch signal to queue
-            res = xQueueSendFromISR(queue, &item, NULL);
-            if (res == errQUEUE_FULL) printf("Error: Could not give semaphore\n");
+            samples++;
             break;
         default:
             break;
@@ -184,15 +178,13 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-    uint32_t idleTime = 5000000; // 5 seconds
 	char currentSpeed[10];
     while (1) {
-        if (modifyTime + idleTime < time_us_32()) speed = 0;
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
         sprintf(currentSpeed, "%d", speed);
         drawString("MPH", 70, 3, 3, 0xF00F);
     	drawString(currentSpeed, 0, 5, 10, 0xFFFF);
-    	drawString("Battery: 71%", 0, 112, 2, 0x000F);
+    	drawString("Battery: --%", 0, 112, 2, 0x000F);
         drawString("Power Output: 120W", 0, 100, 2, 0x0FF0);
         drawFrameBuffer();
         vTaskDelay(100);
@@ -217,21 +209,23 @@ void changeSpeed(void *notUsed) {
 void getSpeed(void *notUsed) {
     static uint32_t lastPass;
     uint32_t currentTime;
-    uint8_t signal;
+    uint32_t waitTime_ms = 3000; // 3 Seconds to sample speed
+    uint32_t deltaTime;
     while (1) {
-        printf("Waiting for semaphore\n");
-        // Receive magnetic switch signals from queue
-        xQueueReceive(queue, &signal, portMAX_DELAY);
-        printf("Received semaphore\n");
+        // Calculate speed based on number of samples
         currentTime = time_us_32();
-        // Calculate RPM based on lastPass to now
-        double deltaTime = (currentTime - lastPass) / (1000.0 * 1000.0); // In seconds
-        // We did one revolution whenever this function runs
-        double distance = (PI * WHEEL_SIZE) / (12.0 * 5280.0); // Distance in miles
-        // Convert time to hours
-        double hours = deltaTime / 3600.0;
-        speed = (uint32_t) (distance / hours);
-        lastPass = currentTime;
+        deltaTime = (currentTime - lastPass) / 1000; // ms since last sample
+        if (deltaTime == 0) continue;
+        // 1 sample = (wheel size) * pi distance.
+
+        // Convert the circumference to linear distance traveled
+        speed = (samples * WHEEL_SIZE * PIS * 36) / (deltaTime * 12 * 528);
+        printf("Speed is %u\n", speed);
+        printf("Samples %d\n", samples);
+        printf("deltaTime is %u\n", deltaTime);
+        samples = 0; // Clear samples
+        lastPass = currentTime; // Update last time stamp
+        vTaskDelay(waitTime_ms / portTICK_PERIOD_MS);
     }
 }
 
@@ -255,14 +249,10 @@ int main()
     LCD_2IN_Init();
 	memset(FRAMEBUFFER, 0, sizeof(uint16_t) * WIDTH * HEIGHT);
     LCD_2IN_Clear(0xFFFF);
-    queue = xQueueCreate(20, sizeof(uint8_t));
-    if (queue == NULL) {
-        printf("Error: Could not create queue.\n");
-    }
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL);
     xTaskCreate(drawScreen, "draw", 128, NULL, 1, NULL);
-    xTaskCreate(getSpeed, "speed", 128, NULL, 2, NULL);
+    xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
