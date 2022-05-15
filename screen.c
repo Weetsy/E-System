@@ -21,7 +21,9 @@
 #define SW2 15
 #define MAG_SW 16 // Magnetic switch for RPM
 #define WHEEL_SIZE 26 // 26 inch wheels
-#define PIS 31415 // PI * 1,000,000
+#define MY_WEIGHT 75 // 75kg
+#define BIKE_WEIGHT 7 // 7kg
+#define PIS 31415 // PI * 10,000
 
 void drawFrameBuffer(); // Prototype
 
@@ -31,6 +33,8 @@ void drawFrameBuffer(); // Prototype
 uint16_t FRAMEBUFFER[WIDTH * HEIGHT];
 uint32_t speed;
 uint32_t samples;
+uint32_t energy;
+uint32_t joules;
 
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
@@ -179,13 +183,32 @@ void drawScreen(void *notUsed) {
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
 	char currentSpeed[10];
+    char powerString[22];
+
+    // ps variables below used to center justify energy text
+    int psLen; // Length of powerString
+    int psIndex; // Index to draw the powerString to screen
     while (1) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
+        memset(powerString, 0, sizeof(powerString));
         sprintf(currentSpeed, "%d", speed);
         drawString("MPH", 70, 3, 3, 0xF00F);
     	drawString(currentSpeed, 0, 5, 10, 0xFFFF);
     	drawString("Battery: --%", 0, 112, 2, 0x000F);
-        drawString("Power Output: 120W", 0, 100, 2, 0x0FF0);
+        sprintf(currentSpeed, "%.2f", energy / 1000.0);
+        strcat(powerString, "Power Output: ");
+        strcat(powerString, currentSpeed);
+        strcat(powerString, "kW");
+        drawString(powerString, 0, 100, 2, 0x0FF0);
+        memset(powerString, 0, sizeof(powerString));
+        drawString("kCal", 78, 30, 3, 0xAFFA);
+        strcat(powerString, "   "); // Pad first 3 slots with spaces
+        sprintf(&powerString[3], "%.2f", joules / 4184.0);
+        // Ensure that the powerString always has 6 chars
+        psLen = strlen(&powerString[3]);
+        psIndex = (psLen - 7) + 3;
+        if (psIndex < 0 || psIndex > 22) psIndex = 0;
+        drawString(&powerString[psIndex], 104, 60, 2, 0xAFFA);
         drawFrameBuffer();
         vTaskDelay(100);
     }
@@ -211,15 +234,18 @@ void getSpeed(void *notUsed) {
     uint32_t currentTime;
     uint32_t waitTime_ms = 3000; // 3 Seconds to sample speed
     uint32_t deltaTime;
+    uint32_t meters_per_sec;
     while (1) {
         // Calculate speed based on number of samples
         currentTime = time_us_32();
         deltaTime = (currentTime - lastPass) / 1000; // ms since last sample
         if (deltaTime == 0) continue;
         // 1 sample = (wheel size) * pi distance.
-
         // Convert the circumference to linear distance traveled
         speed = (samples * WHEEL_SIZE * PIS * 36) / (deltaTime * 12 * 528);
+        meters_per_sec = (samples * WHEEL_SIZE * PIS) / (deltaTime * 394);
+        energy = ((MY_WEIGHT + BIKE_WEIGHT) * (meters_per_sec * meters_per_sec)) / 2;
+        joules += (energy * (waitTime_ms / 1000));
         printf("Speed is %u\n", speed);
         printf("Samples %d\n", samples);
         printf("deltaTime is %u\n", deltaTime);
@@ -251,7 +277,7 @@ int main()
     LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(drawScreen, "draw", 128, NULL, 1, NULL);
+    myAssert(xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL) == pdPASS);
     xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
