@@ -19,8 +19,6 @@
 #include "common.h"
 #include "Pico_UPS.h"
 
-#define SW1 14
-#define SW2 15
 #define MAG_SW 16 // Magnetic switch for RPM
 #define WHEEL_SIZE 26 // 26 inch wheels
 #define MY_WEIGHT 75 // 75kg
@@ -56,12 +54,6 @@ void gpio_int_callback(uint gpio, uint32_t events_unused) {
     if (checkTime + guardTime > currentTime) return;
     checkTime = currentTime; // Update checkTime
     switch (gpio) {
-        case SW1:
-            speed++;
-            break;
-        case SW2:
-            speed--;
-            break;
         case MAG_SW:
             samples++;
             break;
@@ -77,8 +69,6 @@ void hardware_init(void)
     gpio_init(LED_PIN);
     gpio_init(RESET_PIN);
     gpio_init(DC_PIN);
-    gpio_init(SW1);
-    gpio_init(SW2);
     gpio_init(MAG_SW);
 
     // Remove??
@@ -92,12 +82,8 @@ void hardware_init(void)
     gpio_set_dir(RESET_PIN, GPIO_OUT);
     gpio_set_dir(DC_PIN, GPIO_OUT);
 
-    gpio_set_dir(SW1, GPIO_IN);
-    gpio_set_dir(SW2, GPIO_IN);
     gpio_set_dir(MAG_SW, GPIO_IN);
 
-    gpio_pull_up(SW1);
-    gpio_pull_up(SW2);
     gpio_pull_down(MAG_SW);
 
     gpio_set_function(CS_PIN, GPIO_FUNC_SPI);
@@ -108,8 +94,6 @@ void hardware_init(void)
     gpio_put(DC_PIN, HIGH);
     gpio_put(RESET_PIN, HIGH);
 
-    gpio_set_irq_enabled_with_callback(SW1, GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
-    gpio_set_irq_enabled_with_callback(SW2, GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
     gpio_set_irq_enabled_with_callback(MAG_SW, GPIO_IRQ_EDGE_RISE, true, &gpio_int_callback);
 }
 
@@ -234,14 +218,6 @@ void drawFrameBuffer()
 {
     LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
     DEV_SPI_Write_nByte((uint8_t *)FRAMEBUFFER, WIDTH * HEIGHT * 2);
-}
-
-void changeSpeed(void *notUsed) {
-    while (1) {
-        if (!gpio_get(SW1)) speed--;
-        if (!gpio_get(SW2)) speed++;
-        vTaskDelay(100);
-    }
 }
 
 void getSpeed(void *notUsed) {
