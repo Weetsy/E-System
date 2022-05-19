@@ -11,11 +11,13 @@
 
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
+#include "hardware/i2c.h"
 #include "pico/stdlib.h"
 #include "myAssert.h"
 #include "fonts.h"
 #include "LCD_2IN.h"
 #include "common.h"
+#include "Pico_UPS.h"
 
 #define SW1 14
 #define SW2 15
@@ -35,6 +37,7 @@ uint32_t speed;
 uint32_t samples;
 uint32_t energy;
 uint32_t joules;
+float bat;
 
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
@@ -78,6 +81,7 @@ void hardware_init(void)
     gpio_init(SW2);
     gpio_init(MAG_SW);
 
+    // Remove??
     gpio_init(CS_PIN);
     gpio_init(CLK_PIN);
     gpio_init(MOSI_PIN);
@@ -191,10 +195,21 @@ void drawScreen(void *notUsed) {
     while (1) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
         memset(powerString, 0, sizeof(powerString));
+
+        // Draw speed data to screen
         sprintf(currentSpeed, "%d", speed);
         drawString("MPH", 70, 3, 3, 0xF00F);
     	drawString(currentSpeed, 0, 5, 10, 0xFFFF);
-    	drawString("Battery: --%", 0, 112, 2, 0x000F);
+
+        // Draw battery data to screen
+        sprintf(currentSpeed, "%.0f", bat);
+        strcat(powerString, "Battery: ");
+        strcat(powerString, currentSpeed);
+        strcat(powerString, "%");
+    	drawString(powerString, 0, 112, 2, 0x000F);
+        // Clear the powerString array
+        memset(powerString, 0, sizeof(powerString));
+
         sprintf(currentSpeed, "%.2f", energy / 1000.0);
         strcat(powerString, "Power Output: ");
         strcat(powerString, currentSpeed);
@@ -255,6 +270,16 @@ void getSpeed(void *notUsed) {
     }
 }
 
+// Fetches battery stats using WaveShare API for the INA219 controller
+void getBatteryInfo(void *notUsed) {
+    UPS_init();
+    while (1) {
+        bat = batteryPercent();
+        printf("Battery is at %f%\n", bat);
+        vTaskDelay(3000);
+    }
+}
+
 int main()
 {
     // Initialize stdio
@@ -276,9 +301,10 @@ int main()
 	memset(FRAMEBUFFER, 0, sizeof(uint16_t) * WIDTH * HEIGHT);
     LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
-    xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL);
+    myAssert(xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL) == pdPASS);
     myAssert(xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL) == pdPASS);
-    xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL);
+    myAssert(xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL) == pdPASS);
+    myAssert(xTaskCreate(getBatteryInfo, "bat", 256, NULL, 3, NULL) == pdPASS);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();

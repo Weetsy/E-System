@@ -47,10 +47,11 @@ add_executable(screen
         myAssert.c
         fonts.c
         LCD_2IN.c
+        Pico_UPS.c
         )
 
 # pull in common dependencies
-target_link_libraries(screen pico_stdlib freertos hardware_spi)
+target_link_libraries(screen pico_stdlib freertos hardware_spi hardware_i2c)
 
 # tell the pico library that you will be using usb serial and not an actual uart on the
 # processor

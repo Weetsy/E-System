@@ -1,3 +1,6 @@
+// Waveshare documentation and initialization functions pulled from:
+// https://www.waveshare.com/wiki/2inch_LCD_Module
+
 #include <stdio.h>
 #include "hardware/gpio.h"
 #include "hardware/spi.h"

@@ -1,5 +1,6 @@
 // Waveshare documentation and initialization functions pulled from:
 // https://www.waveshare.com/wiki/2inch_LCD_Module
+
 #ifndef LCD_2IN_H
 #define LCD_2IN_H
 
@@ -9,9 +10,9 @@
 #define MISO_PIN 4  /* GPIO4 */
 
 #define LED_PIN 25 // Pico's built in LED
-#define DC_PIN 6 // Extra DC pin for display
-#define RESET_PIN 7 // Drive this pin LOW to reset display
-#define BACKLIGHT 8 // Backlight pin
+#define DC_PIN 10 // Extra DC pin for display
+#define RESET_PIN 11 // Drive this pin LOW to reset display
+#define BACKLIGHT 12 // Backlight pin
 
 static void LCD_2IN_Reset(void);
 void LCD_2IN_Write_Command(uint8_t address);
