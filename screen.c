@@ -24,6 +24,7 @@
 #define MY_WEIGHT 75 // 75kg
 #define BIKE_WEIGHT 7 // 7kg
 #define PIS 31415 // PI * 10,000
+#define MAG_POWER 28
 
 void drawFrameBuffer(); // Prototype
 
@@ -70,17 +71,13 @@ void hardware_init(void)
     gpio_init(RESET_PIN);
     gpio_init(DC_PIN);
     gpio_init(MAG_SW);
-
-    // Remove??
-    gpio_init(CS_PIN);
-    gpio_init(CLK_PIN);
-    gpio_init(MOSI_PIN);
-    gpio_init(MISO_PIN);
+    gpio_init(MAG_POWER);
 
     // Set up GPIO pins as output from pico
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_set_dir(RESET_PIN, GPIO_OUT);
     gpio_set_dir(DC_PIN, GPIO_OUT);
+    gpio_set_dir(MAG_POWER, GPIO_OUT);
 
     gpio_set_dir(MAG_SW, GPIO_IN);
 
@@ -93,6 +90,7 @@ void hardware_init(void)
 
     gpio_put(DC_PIN, HIGH);
     gpio_put(RESET_PIN, HIGH);
+    gpio_put(MAG_POWER, HIGH); // Magnetic switch power rail
 
     gpio_set_irq_enabled_with_callback(MAG_SW, GPIO_IRQ_EDGE_RISE, true, &gpio_int_callback);
 }
