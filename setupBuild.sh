@@ -38,6 +38,9 @@ else
         #ctest --output-on-failure
         echo "Tests NOT supported yet"
     else
-        cp screen.uf2 $2
+        if [ -f "../screen.uf2" ]; then
+            rm ../screen.uf2
+        fi
+        ln screen.uf2 ../
     fi
 fi

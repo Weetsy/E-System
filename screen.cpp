@@ -19,6 +19,9 @@
 #include "common.h"
 #include "Pico_UPS.h"
 
+#include "triangleDraw.h"
+#include "Renderer.hpp"
+
 #define MAG_SW 16 // Magnetic switch for RPM
 #define WHEEL_SIZE 26 // 26 inch wheels
 #define MY_WEIGHT 75 // 75kg
@@ -175,13 +178,25 @@ void drawScreen(void *notUsed) {
     // ps variables below used to center justify energy text
     int psLen; // Length of powerString
     int psIndex; // Index to draw the powerString to screen
+    // Create a sample triangle
+    auto v1 = Vertex(0, 50);
+    auto v2 = Vertex(50, 0);
+    auto v3 = Vertex(100, 50);
+    Vector<Vertex> vertices;
+    vertices.push_back(v1);
+    vertices.push_back(v2);
+    vertices.push_back(v3);
+    auto tri = Triangle(vertices);
+    Renderer renderer(FRAMEBUFFER, WIDTH, HEIGHT);
     while (1) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
         memset(powerString, 0, sizeof(powerString));
+        renderer.drawTriangle(tri);
 
+        /*
         // Draw speed data to screen
         sprintf(currentSpeed, "%d", speed);
-        drawString("MPH", 70, 3, 3, 0xFFFF);
+        drawString("Bidges", 70, 3, 3, 0xFFFF);
     	drawString(currentSpeed, 0, 5, 10, 0xFFFF);
 
         // Draw battery data to screen
@@ -207,7 +222,7 @@ void drawScreen(void *notUsed) {
         psLen = strlen(&powerString[3]);
         psIndex = (psLen - 7) + 3;
         if (psIndex < 0 || psIndex > 22) psIndex = 0;
-        drawString(&powerString[psIndex], 104, 60, 2, 0xFFFF);
+        drawString(&powerString[psIndex], 104, 60, 2, 0xFFFF);*/
         drawFrameBuffer();
         vTaskDelay(100);
     }

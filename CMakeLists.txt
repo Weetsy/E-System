@@ -43,11 +43,13 @@ target_include_directories(freertos PUBLIC
 
 
 add_executable(screen
-        screen.c
-        myAssert.c
-        fonts.c
-        LCD_2IN.c
-        Pico_UPS.c
+        screen.cpp
+        myAssert.cpp
+        fonts.cpp
+        LCD_2IN.cpp
+        Pico_UPS.cpp
+        triangleDraw.cpp
+        Renderer.cpp
         )
 
 # pull in common dependencies
