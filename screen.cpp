@@ -179,10 +179,10 @@ void drawScreen(void *notUsed) {
     int psLen; // Length of powerString
     int psIndex; // Index to draw the powerString to screen
     // Create a sample triangle
-    auto v1 = Vertex(0, 50);
-    auto v2 = Vertex(50, 0);
-    auto v3 = Vertex(100, 50);
-    Vector<Vertex> vertices;
+    auto v1 = Vertex(0, 50, 0);
+    auto v2 = Vertex(50, 0, 0);
+    auto v3 = Vertex(100, 50, 0);
+    std::vector<Vertex> vertices;
     vertices.push_back(v1);
     vertices.push_back(v2);
     vertices.push_back(v3);
@@ -283,8 +283,8 @@ int main()
     spi_set_format(
         spi0,
         8, // 8 bits per transfer
-        0x00000080,
-        0x00000040,
+        SPI_CPOL_0,
+        SPI_CPHA_0,
         SPI_MSB_FIRST
     );
 

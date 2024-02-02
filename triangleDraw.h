@@ -31,15 +31,13 @@ enum TriangleType {
 class Triangle
 {
   public:
-    Triangle(std::vector<Vertex> vertices);
-    Vertex &upperVertex() { return upperVertex_; }
-    Vertex &middleVertex() { return middleVertex_; }
-    Vertex &lowerVertex() { return lowerVertex_; }
+    Triangle(std::vector<Vertex> &vertices);
+    Vertex &upperVertex() { return vertices_[0]; }
+    Vertex &middleVertex() { return vertices_[1]; }
+    Vertex &lowerVertex() { return vertices_[2]; }
     TriangleType type() { return type_; }
   private:
-    Vertex &upperVertex_;
-    Vertex &middleVertex_;
-    Vertex &lowerVertex_;
+    std::vector<Vertex> &vertices_;
     TriangleType type_;
 };
 

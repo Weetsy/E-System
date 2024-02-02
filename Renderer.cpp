@@ -49,19 +49,22 @@ float calcluateSlope(Vertex &v1, Vertex &v2)
 
 RenderResult Renderer::drawTriangle(Triangle &triangle)
 {
+    float s1, s2;
+    float d1, d2;
+    int y;
     // Switch rendering mode based on triangle type
     switch (triangle.type())
     {
         case TriangleType::FLAT_TOP:
             // Calculate the inverse slope from mid to high
-            float s1 = calcluateSlope(triangle.middleVertex(), triangle.upperVertex());
+            s1 = calcluateSlope(triangle.middleVertex(), triangle.upperVertex());
             // Calculate the inverse slope from low to high
-            float s2 = calcluateSlope(triangle.lowerVertex(), triangle.upperVertex());
+            s2 = calcluateSlope(triangle.lowerVertex(), triangle.upperVertex());
 
             // Set the domain with respect to the slopes above
-            float d1 = triangle.middleVertex().x();
-            float d2 = triangle.lowerVertex().x();
-            int y = triangle.lowerVertex().y(); // Lower and middle should be the same...
+            d1 = triangle.middleVertex().x();
+            d2 = triangle.lowerVertex().x();
+            y = triangle.lowerVertex().y(); // Lower and middle should be the same...
 
             renderFlatTopTriangle(s1, s2, d1, d2, y);
             break;

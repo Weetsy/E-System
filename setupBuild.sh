@@ -13,7 +13,7 @@ if [ ! -d build ]; then
     mkdir build
 fi
 cd build
-PICO_SDK_PATH="/home/ubuntu/src/pico/pico-sdk"
+PICO_SDK_PATH="~/src/pico/pico-sdk"
 # If -d flag is present, build in debug mode
 if [ "$1" = "-d" ] || [ "$2" = "-d" ]; then
     echo "RUNNING UNDER DEBUG MODE"
