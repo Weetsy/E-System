@@ -192,37 +192,6 @@ void drawScreen(void *notUsed) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
         memset(powerString, 0, sizeof(powerString));
         renderer.drawTriangle(tri);
-
-        /*
-        // Draw speed data to screen
-        sprintf(currentSpeed, "%d", speed);
-        drawString("Bidges", 70, 3, 3, 0xFFFF);
-    	drawString(currentSpeed, 0, 5, 10, 0xFFFF);
-
-        // Draw battery data to screen
-        sprintf(currentSpeed, "%.0f", bat);
-        strcat(powerString, "Battery: ");
-        strcat(powerString, currentSpeed);
-        strcat(powerString, "%");
-    	drawString(powerString, 0, 112, 2, 0xFFFF);
-        // Clear the powerString array
-        memset(powerString, 0, sizeof(powerString));
-
-        sprintf(currentSpeed, "%.2f", energy / 1000.0);
-        strcat(powerString, "Power Output: ");
-        strcat(powerString, currentSpeed);
-        strcat(powerString, "kW");
-        drawString(powerString, 0, 100, 2, 0xFFFF);
-
-        memset(powerString, 0, sizeof(powerString));
-        drawString("DIST", 74, 30, 3, 0xFFFF);
-        strcat(powerString, "   "); // Pad first 3 slots with spaces
-        sprintf(&powerString[3], "%.2f", ((float)joules * 26.0f * PI) / (5280.0f * 12.0f));
-        // Ensure that the powerString always has 6 chars
-        psLen = strlen(&powerString[3]);
-        psIndex = (psLen - 7) + 3;
-        if (psIndex < 0 || psIndex > 22) psIndex = 0;
-        drawString(&powerString[psIndex], 104, 60, 2, 0xFFFF);*/
         drawFrameBuffer();
         vTaskDelay(100);
     }
@@ -294,8 +263,8 @@ int main()
     // Create idle task for heartbeat
     myAssert(xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL) == pdPASS);
     myAssert(xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL) == pdPASS);
-    myAssert(xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL) == pdPASS);
-    myAssert(xTaskCreate(getBatteryInfo, "bat", 256, NULL, 3, NULL) == pdPASS);
+    //myAssert(xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL) == pdPASS);
+    //myAssert(xTaskCreate(getBatteryInfo, "bat", 256, NULL, 3, NULL) == pdPASS);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
