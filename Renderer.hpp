@@ -14,14 +14,15 @@ class Renderer
 {
   public:
     Renderer(uint16_t *frameBuffer, unsigned int width, unsigned int height);
-    RenderResult drawLine(unsigned int x1, unsigned int x2, unsigned int y);
-    RenderResult drawTriangle(Triangle &triangle);
+    RenderResult drawLine(int x1, int x2, int y);
+    RenderResult drawTriangle(Triangle &triangle, uint16_t color);
     RenderResult renderFlatTopTriangle(float is1, float is2, float d1, float d2, int y);
     RenderResult renderFlatBottomTriangle(float is1, float is2, float d1, float d2, int y);
   private:
     unsigned int width_;
     unsigned int height_;
     uint16_t *frameBuffer_;
+    uint16_t color_;
 };
 
 #endif

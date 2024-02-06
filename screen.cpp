@@ -172,12 +172,6 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-	char currentSpeed[10];
-    char powerString[22];
-
-    // ps variables below used to center justify energy text
-    int psLen; // Length of powerString
-    int psIndex; // Index to draw the powerString to screen
     // Create a sample triangle
     auto v1 = Vertex(0, 50, 0);
     auto v2 = Vertex(50, 0, 0);
@@ -186,12 +180,39 @@ void drawScreen(void *notUsed) {
     vertices.push_back(v1);
     vertices.push_back(v2);
     vertices.push_back(v3);
+    auto v4 = Vertex(0, 150, 0);
+    auto v5 = Vertex(50, 100, 0);
+    auto v6 = Vertex(150, 150, 0);
+    std::vector<Vertex> verticesToo;
+    verticesToo.push_back(v4);
+    verticesToo.push_back(v5);
+    verticesToo.push_back(v6);
+    auto v7 = Vertex(-100, 300, 0);
+    auto v8 = Vertex(50, 250, 0);
+    auto v9 = Vertex(150, 250, 0);
+    std::vector<Vertex> verticesTree;
+    verticesTree.push_back(v7);
+    verticesTree.push_back(v8);
+    verticesTree.push_back(v9);
     auto tri = Triangle(vertices);
+    auto tri2 = Triangle(verticesToo);
+    auto tri3 = Triangle(verticesTree);
     Renderer renderer(FRAMEBUFFER, WIDTH, HEIGHT);
+    uint16_t color = 0xFFFE;
+    int direction = false;
     while (1) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
-        memset(powerString, 0, sizeof(powerString));
-        renderer.drawTriangle(tri);
+        if (color + 1 >= 0xFFFF) {
+            direction = false;
+        }
+        if (color - 1 <= 0x0000) {
+            direction = true;
+        }
+        if (direction) color++;
+        else color--;
+        renderer.drawTriangle(tri, color);
+        renderer.drawTriangle(tri2, color);
+        renderer.drawTriangle(tri3, color);
         drawFrameBuffer();
         vTaskDelay(100);
     }
@@ -202,42 +223,6 @@ void drawFrameBuffer()
 {
     LCD_2IN_SetWindow(0, 0, WIDTH, HEIGHT);
     DEV_SPI_Write_nByte((uint8_t *)FRAMEBUFFER, WIDTH * HEIGHT * 2);
-}
-
-void getSpeed(void *notUsed) {
-    static uint32_t lastPass;
-    uint32_t currentTime;
-    uint32_t waitTime_ms = 3000; // 3 Seconds to sample speed
-    uint32_t deltaTime;
-    uint32_t meters_per_sec;
-    while (1) {
-        // Calculate speed based on number of samples
-        currentTime = time_us_32();
-        deltaTime = (currentTime - lastPass) / 1000; // ms since last sample
-        if (deltaTime == 0) continue;
-        // 1 sample = (wheel size) * pi distance.
-        // Convert the circumference to linear distance traveled
-        speed = (samples * WHEEL_SIZE * PIS * 36) / (deltaTime * 12 * 528);
-        meters_per_sec = (samples * WHEEL_SIZE * PIS) / (deltaTime * 394);
-        energy = ((MY_WEIGHT + BIKE_WEIGHT) * (meters_per_sec * meters_per_sec)) / 2;
-        joules += samples;
-        printf("Speed is %u\n", speed);
-        printf("Samples %d\n", samples);
-        printf("deltaTime is %u\n", deltaTime);
-        samples = 0; // Clear samples
-        lastPass = currentTime; // Update last time stamp
-        vTaskDelay(waitTime_ms / portTICK_PERIOD_MS);
-    }
-}
-
-// Fetches battery stats using WaveShare API for the INA219 controller
-void getBatteryInfo(void *notUsed) {
-    UPS_init();
-    while (1) {
-        bat = batteryPercent();
-        printf("Battery is at %f%\n", bat);
-        vTaskDelay(3000);
-    }
 }
 
 int main()
@@ -262,12 +247,14 @@ int main()
     LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     myAssert(xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL) == pdPASS);
-    myAssert(xTaskCreate(drawScreen, "draw", 256, NULL, 1, NULL) == pdPASS);
+    myAssert(xTaskCreate(drawScreen, "draw", 768, NULL, 1, NULL) == pdPASS);
     //myAssert(xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL) == pdPASS);
     //myAssert(xTaskCreate(getBatteryInfo, "bat", 256, NULL, 3, NULL) == pdPASS);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
     // Start task scheduler to start all above tasks
     vTaskStartScheduler();
 
-    while(1){};
+    while(1){
+
+    };
 }

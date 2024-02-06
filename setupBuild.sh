@@ -38,9 +38,6 @@ else
         #ctest --output-on-failure
         echo "Tests NOT supported yet"
     else
-        if [ -f "../screen.uf2" ]; then
-            rm ../screen.uf2
-        fi
-        ln screen.uf2 ../
+        cp screen.uf2 /media/weetsy/RPI-FLASH/
     fi
 fi

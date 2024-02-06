@@ -3,3 +3,4 @@ screen
 *.uf2
 .vscode/
 main
+*.log

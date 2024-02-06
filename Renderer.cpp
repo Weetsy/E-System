@@ -4,22 +4,22 @@
 using std::cout;
 using std::endl;
 Renderer::Renderer(uint16_t *frameBuffer, unsigned int width, unsigned int height) : width_ { width },
-    height_ { height }, frameBuffer_ { frameBuffer } {
+    height_ { height }, frameBuffer_ { frameBuffer }, color_ { 0xFFFF } {
 
 }
 
-RenderResult Renderer::drawLine(unsigned int x1, unsigned int x2, unsigned int y)
+RenderResult Renderer::drawLine(int x1, int x2, int y)
 {
     cout << "Renderer::drawLine entry" << endl;
     // Draw the given line onto the frame buffer
-    if (x1 > width_) return RenderResult::FAILURE;
-    if (x2 > width_) return RenderResult::FAILURE;
-    if (y > height_) return RenderResult::FAILURE;
+    if (x1 > width_ || x1 < 0) x1 = 0;
+    if (x2 > width_ || x2 < 0) x2 = 0;
+    if (y > height_ || y < 0) y = 0;
 
     // Write color data into the frame buffer
-    for (unsigned int i = x1; i < x2; i++)
+    for (uint32_t i = x1; i < x2; i++)
     {
-        frameBuffer_[y * width_ + i] = 0xFFFF;
+        frameBuffer_[y * width_ + i] = color_;
     }
     return RenderResult::OK;
 }
@@ -88,11 +88,12 @@ float calcluateSlope(Vertex &v1, Vertex &v2)
     return dx / dy; 
 }
 
-RenderResult Renderer::drawTriangle(Triangle &triangle)
+RenderResult Renderer::drawTriangle(Triangle &triangle, uint16_t color)
 {
     float s1, s2;
     float d1, d2;
     int y;
+    color_ = color;
     // Switch rendering mode based on triangle type
     switch (triangle.type())
     {
