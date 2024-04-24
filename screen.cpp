@@ -22,6 +22,9 @@
 #include "triangleDraw.h"
 #include "Renderer.hpp"
 
+#include <string>
+#include <vector>
+
 #define MAG_SW 16 // Magnetic switch for RPM
 #define WHEEL_SIZE 26 // 26 inch wheels
 #define MY_WEIGHT 75 // 75kg
@@ -104,7 +107,7 @@ int getFont(char c) {
 	return c - 32;
 }
 
-void drawString(char *phrase, uint16_t posX, uint16_t posY, uint8_t scale, uint16_t fgColor) {
+void drawString(const char *phrase, uint16_t posX, uint16_t posY, uint8_t scale, uint16_t fgColor) {
     // Composite a string onto the frame buffer in a non-destructive manner
     // Assume the 8 by 8 pixel format
     int char_index = 0;
@@ -172,10 +175,10 @@ void drawScreen(void *notUsed) {
     green = greenCap;
     //uint16_t pixel = (blue | green<<5 | red<<11);
 	*/
-    // Create a sample triangle
+    // Create a sample IRREGULAR triangle
     auto v1 = Vertex(0, 50, 0);
-    auto v2 = Vertex(50, 0, 0);
-    auto v3 = Vertex(100, 50, 0);
+    auto v2 = Vertex(70, 0, 0);
+    auto v3 = Vertex(132, 99, 0);
     std::vector<Vertex> vertices;
     vertices.push_back(v1);
     vertices.push_back(v2);
@@ -200,6 +203,9 @@ void drawScreen(void *notUsed) {
     Renderer renderer(FRAMEBUFFER, WIDTH, HEIGHT);
     uint16_t color = 0xFFFE;
     int direction = false;
+    auto samples = 10;
+    auto fps = 0.0f;
+    std::vector<uint32_t>timings;
     while (1) {
         memset(FRAMEBUFFER, 0, WIDTH * HEIGHT * sizeof(uint16_t));
         if (color + 1 >= 0xFFFF) {
@@ -210,9 +216,21 @@ void drawScreen(void *notUsed) {
         }
         if (direction) color++;
         else color--;
+        auto before = time_us_32();
         renderer.drawTriangle(tri, color);
         renderer.drawTriangle(tri2, color);
         renderer.drawTriangle(tri3, color);
+        auto after = time_us_32();
+        if (timings.size() > samples) {
+            // Get average
+            auto sum = 0;
+            for (auto time : timings) { sum += time; }
+            auto average_spf = static_cast<float>(sum) / static_cast<float>(timings.size() * 1000000);
+            fps = 1.0f / average_spf;
+            timings.clear();
+        }
+        drawString(std::string("FPS: " + std::to_string(static_cast<int>(fps))).c_str(), 0, 110, 2, 0xFFFF);
+        timings.push_back(after - before);
         drawFrameBuffer();
         vTaskDelay(100);
     }
@@ -247,7 +265,7 @@ int main()
     LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     myAssert(xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL) == pdPASS);
-    myAssert(xTaskCreate(drawScreen, "draw", 768, NULL, 1, NULL) == pdPASS);
+    myAssert(xTaskCreate(drawScreen, "draw", 2048, NULL, 1, NULL) == pdPASS);
     //myAssert(xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL) == pdPASS);
     //myAssert(xTaskCreate(getBatteryInfo, "bat", 256, NULL, 3, NULL) == pdPASS);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);

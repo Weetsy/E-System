@@ -38,6 +38,6 @@ else
         #ctest --output-on-failure
         echo "Tests NOT supported yet"
     else
-        cp screen.uf2 /media/weetsy/RPI-FLASH/
+        cp screen.uf2 /media/weetsy/RPI-RP2/
     fi
 fi
