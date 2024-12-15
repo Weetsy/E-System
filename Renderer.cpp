@@ -4,7 +4,8 @@
 #include <vector>
 #include <cmath>
 #define VERBOSE
-
+// Pray to god this is 32 bits
+typedef unsigned int uint32_t;
 using std::cout;
 using std::endl;
 Renderer::Renderer(uint16_t *frameBuffer, unsigned int width, unsigned int height) : width_ { width },
