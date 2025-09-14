@@ -33,6 +33,11 @@
 #define PI 3.1415f
 #define MAG_POWER 28
 
+#define A_PIN 17
+#define B_PIN 16
+
+#define ALLOWABLE_BAD_TRANSITIONS 5
+
 void drawFrameBuffer(); // Prototype
 
 // DC and RESET should be driven high
@@ -43,7 +48,23 @@ uint32_t speed;
 uint32_t samples;
 uint32_t energy;
 uint32_t joules;
+int pos;
 float bat;
+int badTransitions;
+int ignoredSwitches;
+#define BOUNCE_TIME_US 0
+
+typedef enum Rotation {
+    Q1, Q2, Q3, Q4
+} Rotation;
+
+enum Signals {
+    A_HIGH,
+    A_LOW,
+    B_HIGH,
+    B_LOW
+};
+Rotation stateMachine;
 
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
@@ -54,16 +75,91 @@ void led_control(bool isOn)
     isOn ? gpio_put(LED_PIN, HIGH) : gpio_put(LED_PIN, LOW);
 }
 
+int getZone(int position) {
+    return 999;
+}
+
+void changeState(uint8_t signal) {
+    static uint8_t cyc; // Number of state "cycles" so far
+
+    // Perform different actions depending on the current state and signal
+    switch (stateMachine) {
+        case Q1: // If we're currently in state 1, transition to state 2 or 4
+            switch (signal) {
+            case B_HIGH:
+                stateMachine = Q2;
+                pos++;
+                break;
+            case A_HIGH:
+                stateMachine = Q4;
+                pos--;
+                break;
+            default:
+                break;
+            }
+            break;
+        case Q2: // If we're currently in state 2, transition to state 1 or 3
+            switch (signal) {
+            case B_LOW:
+                stateMachine = Q1;
+                pos--;
+                break;
+            case A_HIGH:
+                stateMachine = Q3;
+                pos++;
+                break;
+            default:
+                break;
+            }
+            break;
+        case Q3: // If we're currently in state 3, transition to state 4 or 2
+            switch (signal) {
+            case B_LOW:
+                stateMachine = Q4;
+                pos++;
+                break;
+            case A_LOW:
+                stateMachine = Q2;
+                pos--;
+                break;
+            }
+            break;
+        case Q4: // If we're currently in state 4, transition to state 1 or 3
+            switch (signal) {
+            case A_LOW: 
+                stateMachine = Q1;
+                pos++;
+                break;
+            case B_HIGH:
+                stateMachine = Q3;
+                pos--;
+                break;
+            default:
+                break;
+            }
+            break;
+        default:
+            //printf("Transition error detected\n");
+            myAssert(badTransitions++ < ALLOWABLE_BAD_TRANSITIONS);
+            break;
+    }
+}
+
 void gpio_int_callback(uint gpio, uint32_t events_unused) {
     //printf("%u caused interrupt\n", gpio);
     static uint32_t checkTime;
     uint32_t currentTime = time_us_32();
-    uint32_t guardTime = 65000; // 65ms (For now)
-    if (checkTime + guardTime > currentTime) return;
+    if (checkTime + BOUNCE_TIME_US > currentTime) {
+        ignoredSwitches++;
+        return;
+    }
     checkTime = currentTime; // Update checkTime
     switch (gpio) {
-        case MAG_SW:
-            samples++;
+        case A_PIN:
+            changeState(events_unused == GPIO_IRQ_EDGE_RISE ? A_HIGH : A_LOW);
+            break;
+        case B_PIN:
+            changeState(events_unused == GPIO_IRQ_EDGE_RISE ? B_HIGH : B_LOW);
             break;
         default:
             break;
@@ -80,6 +176,10 @@ void hardware_init(void)
     gpio_init(MAG_SW);
     gpio_init(MAG_POWER);
 
+    // Initialize motor phase pins
+    gpio_init(A_PIN);
+    gpio_init(B_PIN);
+
     // Set up GPIO pins as output from pico
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_set_dir(RESET_PIN, GPIO_OUT);
@@ -87,6 +187,8 @@ void hardware_init(void)
     gpio_set_dir(MAG_POWER, GPIO_OUT);
 
     gpio_set_dir(MAG_SW, GPIO_IN);
+    gpio_set_dir(A_PIN, GPIO_IN);
+    gpio_set_dir(B_PIN, GPIO_IN);
 
     gpio_pull_down(MAG_SW);
 
@@ -100,6 +202,8 @@ void hardware_init(void)
     gpio_put(MAG_POWER, HIGH); // Magnetic switch power rail
 
     gpio_set_irq_enabled_with_callback(MAG_SW, GPIO_IRQ_EDGE_RISE, true, &gpio_int_callback);
+    gpio_set_irq_enabled_with_callback(A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
+    gpio_set_irq_enabled_with_callback(B_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
 }
 
 // Get a font bitmap for a specific character
@@ -217,9 +321,9 @@ void drawScreen(void *notUsed) {
         if (direction) color++;
         else color--;
         auto before = time_us_32();
-        renderer.drawTriangle(tri, color);
-        renderer.drawTriangle(tri2, color);
-        renderer.drawTriangle(tri3, color);
+        //renderer.drawTriangle(tri, color);
+        //renderer.drawTriangle(tri2, color);
+        //renderer.drawTriangle(tri3, color);
         auto after = time_us_32();
         if (timings.size() > samples) {
             // Get average
@@ -230,6 +334,12 @@ void drawScreen(void *notUsed) {
             timings.clear();
         }
         drawString(std::string("FPS: " + std::to_string(static_cast<int>(fps))).c_str(), 0, 110, 2, 0xFFFF);
+        drawString(std::string("POS:  " + std::to_string(pos)).c_str(), 0, 300, 3, 0xFFFF);
+        drawString(std::string("ZONE: " + std::to_string(getZone(pos))).c_str(), 0, 20, 3, 0xFFFF);
+        drawString("---debug info---", 0, 100, 1, 0xFFFF);
+        drawString(std::string("badTransitions: " + std::to_string(badTransitions)).c_str(), 0, 108, 1, 0xFFFF);
+        drawString(std::string("ignoredSwitches: " + std::to_string(ignoredSwitches)).c_str(), 0, 116, 1, 0xFFFF);
+        drawString(std::string("guard time: " + std::to_string(BOUNCE_TIME_US)).c_str(), 0, 124, 1, 0xFFFF);
         timings.push_back(after - before);
         drawFrameBuffer();
         vTaskDelay(100);

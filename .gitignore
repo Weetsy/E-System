@@ -4,3 +4,4 @@ screen
 .vscode/
 main
 *.log
+.cache
