@@ -50,6 +50,7 @@ add_executable(screen
         Pico_UPS.cpp
         triangleDraw.cpp
         Renderer.cpp
+        i2c_slave.c
         )
 
 # pull in common dependencies

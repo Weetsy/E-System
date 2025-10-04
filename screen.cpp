@@ -19,6 +19,9 @@
 #include "common.h"
 #include "Pico_UPS.h"
 
+#include "i2c_fifo.h"
+#include "i2c_slave.h"
+
 #include "triangleDraw.h"
 #include "Renderer.hpp"
 
@@ -70,6 +73,17 @@ enum Signals {
 };
 Rotation stateMachine;
 
+// The slave implements a 256 byte memory. To write a series of bytes, the master first
+// writes the memory address, followed by the data. The address is automatically incremented
+// for each byte transferred, looping back to 0 upon reaching the end. Reading is done
+// sequentially from the current memory address.
+static struct
+{
+    uint8_t mem[256];
+    uint8_t mem_address;
+    bool mem_address_written;
+} context;
+
 /*
  (void) led_control powers the LED on LED_PIN when (bool) isOn is true, and
  powers it off when false.
@@ -89,6 +103,32 @@ int getZone(int position) {
     }
 
     return currentPos;
+}
+
+void handleI2Cinterrupt(i2c_inst_t *i2c, i2c_slave_event_t event){
+    switch (event) {
+    case I2C_SLAVE_RECEIVE: // master has written some data
+        if (!context.mem_address_written) {
+            // writes always start with the memory address
+            context.mem_address = i2c_read_byte(i2c);
+            context.mem_address_written = true;
+        } else {
+            // save into memory
+            context.mem[context.mem_address] = i2c_read_byte(i2c);
+            context.mem_address++;
+        }
+        break;
+    case I2C_SLAVE_REQUEST: // master is requesting data
+        // load from memory
+        i2c_write_byte(i2c, context.mem[context.mem_address]);
+        context.mem_address++;
+        break;
+    case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
+        context.mem_address_written = false;
+        break;
+    default:
+        break;
+    }
 }
 
 void changeState(uint8_t signal) {
@@ -209,6 +249,11 @@ void hardware_init(void)
     gpio_set_function(MOSI_PIN, GPIO_FUNC_SPI);
     gpio_set_function(MISO_PIN, GPIO_FUNC_SPI);
 
+    gpio_set_function(0, GPIO_FUNC_I2C);
+    gpio_set_function(1, GPIO_FUNC_I2C);
+
+    i2c_slave_init(i2c0, 0x10, handleI2Cinterrupt);
+
     gpio_put(DC_PIN, HIGH);
     gpio_put(RESET_PIN, HIGH);
     gpio_put(MAG_POWER, HIGH); // Magnetic switch power rail
@@ -270,7 +315,9 @@ void heartbeat(void *notUsed)
 {
     while (true)
     {
-        printf("hb-tick: %d Encoder Pos: %d Zone: %d\n", 500, pos, getZone(pos)); // 1Hz blinking
+        context.mem[0x17]++;
+        context.mem[0x22] = getZone(pos);
+        printf("0x17 Value: %x Encoder Pos: %d Zone: %d\n", context.mem[0x17], pos, getZone(pos)); // 1Hz blinking
         // Blink for 1Hz
         led_control(true);
         vTaskDelay(500 / portTICK_PERIOD_MS);
