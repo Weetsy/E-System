@@ -39,6 +39,9 @@
 #define A_PIN 17
 #define B_PIN 16
 
+#define MOTOR_CNTRL_CLOCK 14
+#define MOTOR_CNTRL_CUNTR 15
+
 #define CPR 17280
 #define TOTAL_ZONES 7
 #define ZONES (CPR / (TOTAL_ZONES + 1))
@@ -228,6 +231,10 @@ void hardware_init(void)
     gpio_init(MAG_SW);
     gpio_init(MAG_POWER);
 
+    // Initialize Motor Control GPIOs
+    gpio_init(MOTOR_CNTRL_CLOCK);
+    gpio_init(MOTOR_CNTRL_CUNTR);
+
     // Initialize motor phase pins
     gpio_init(A_PIN);
     gpio_init(B_PIN);
@@ -241,6 +248,9 @@ void hardware_init(void)
     gpio_set_dir(MAG_SW, GPIO_IN);
     gpio_set_dir(A_PIN, GPIO_IN);
     gpio_set_dir(B_PIN, GPIO_IN);
+
+    gpio_set_dir(MOTOR_CNTRL_CLOCK, GPIO_OUT);
+    gpio_set_dir(MOTOR_CNTRL_CUNTR, GPIO_OUT);
 
     gpio_pull_down(MAG_SW);
 
@@ -319,6 +329,16 @@ void heartbeat(void *notUsed)
         context.mem[0x22] = getZone(pos);
         printf("0x17 Value: %x Encoder Pos: %d Zone: %d\n", context.mem[0x17], pos, getZone(pos)); // 1Hz blinking
         // Blink for 1Hz
+        if(context.mem[0x24] == 0){
+            gpio_put(MOTOR_CNTRL_CUNTR, LOW);
+            gpio_put(MOTOR_CNTRL_CLOCK, LOW);
+        } else if(context.mem[0x24] % 2){
+            gpio_put(MOTOR_CNTRL_CUNTR, HIGH);
+            gpio_put(MOTOR_CNTRL_CLOCK, LOW);
+        } else {
+            gpio_put(MOTOR_CNTRL_CUNTR, LOW);
+            gpio_put(MOTOR_CNTRL_CLOCK, HIGH);
+        }
         led_control(true);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         led_control(false);
