@@ -36,6 +36,10 @@
 #define A_PIN 17
 #define B_PIN 16
 
+#define CPR 17280
+#define TOTAL_ZONES 7
+#define ZONES (CPR / (TOTAL_ZONES + 1))
+
 #define ALLOWABLE_BAD_TRANSITIONS 5
 
 void drawFrameBuffer(); // Prototype
@@ -76,7 +80,15 @@ void led_control(bool isOn)
 }
 
 int getZone(int position) {
-    return 999;
+    int currentPos = position % CPR;
+    currentPos = currentPos / ZONES;
+
+    if(position < 0){
+        currentPos = abs(currentPos);
+        currentPos = TOTAL_ZONES - currentPos;
+    }
+
+    return currentPos;
 }
 
 void changeState(uint8_t signal) {
@@ -258,7 +270,7 @@ void heartbeat(void *notUsed)
 {
     while (true)
     {
-        printf("hb-tick: %d\n", 500); // 1Hz blinking
+        printf("hb-tick: %d Encoder Pos: %d Zone: %d\n", 500, pos, getZone(pos)); // 1Hz blinking
         // Blink for 1Hz
         led_control(true);
         vTaskDelay(500 / portTICK_PERIOD_MS);
