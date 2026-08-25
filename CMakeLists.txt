@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.13)
 include(~/src/pico/pico-sdk/external/pico_sdk_import.cmake)
 #include(external/pico_sdk_import.cmake)
 
-set(PICO_SDK_FREERTOS_SOURCE ~/src/FreeRTOS-LTS/FreeRTOS/FreeRTOS-Kernel)
+set(PICO_SDK_FREERTOS_SOURCE ~/src/FreeRTOSv202212.01/FreeRTOS/Source)
 
 project(screen C CXX ASM)
 set(CMAKE_C_COMPILER /usr/bin/arm-none-eabi-gcc)
@@ -33,7 +33,6 @@ add_library(freertos
         ${PICO_SDK_FREERTOS_SOURCE}/timers.c
         ${PICO_SDK_FREERTOS_SOURCE}/portable/MemMang/heap_3.c
         ${PICO_SDK_FREERTOS_SOURCE}/portable/GCC/ARM_CM0/port.c
-        ${PICO_SDK_FREERTOS_SOURCE}/portable/GCC/ARM_CM0/portasm.c
 )
 
 target_include_directories(freertos PUBLIC

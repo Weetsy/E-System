@@ -42,11 +42,52 @@
 #define MOTOR_CNTRL_CLOCK 14
 #define MOTOR_CNTRL_CUNTR 15
 
+// GameWheel LEDs
+#define GREEN_0 0
+#define GREEN_1 1
+#define GREEN_2 2
+#define GREEN_3 3
+
+#define GREEN_4 4
+#define GREEN_5 5
+#define GREEN_6 6
+#define GREEN_7 7
+
+
+#define RED_0   8
+#define RED_1   9
+#define RED_2   10
+#define RED_3   11
+
+#define RED_4   12
+#define RED_5   13
+#define RED_6   16
+#define RED_7   17
+
 #define CPR 17280
 #define TOTAL_ZONES 7
 #define ZONES (CPR / (TOTAL_ZONES + 1))
 
 #define ALLOWABLE_BAD_TRANSITIONS 5
+
+uint8_t GREEN_RED_GPIOS[16] = {
+    GREEN_0,
+    GREEN_1,
+    GREEN_2,
+    GREEN_3,
+    GREEN_4,
+    GREEN_5,
+    GREEN_6,
+    GREEN_7,
+    RED_0,
+    RED_1,
+    RED_2,
+    RED_3,
+    RED_4,
+    RED_5,
+    RED_6,
+    RED_7
+};
 
 void drawFrameBuffer(); // Prototype
 
@@ -181,7 +222,7 @@ void changeState(uint8_t signal) {
             break;
         case Q4: // If we're currently in state 4, transition to state 1 or 3
             switch (signal) {
-            case A_LOW: 
+            case A_LOW:
                 stateMachine = Q1;
                 pos++;
                 break;
@@ -225,52 +266,20 @@ void gpio_int_callback(uint gpio, uint32_t events_unused) {
 void hardware_init(void)
 {
     // Initialize GPIO pins on pico
-    gpio_init(LED_PIN);
-    gpio_init(RESET_PIN);
-    gpio_init(DC_PIN);
-    gpio_init(MAG_SW);
-    gpio_init(MAG_POWER);
 
-    // Initialize Motor Control GPIOs
-    gpio_init(MOTOR_CNTRL_CLOCK);
-    gpio_init(MOTOR_CNTRL_CUNTR);
+    for (size_t i = 0; i < (sizeof(GREEN_RED_GPIOS) / sizeof(uint8_t)); ++i) {
+        gpio_init(GREEN_RED_GPIOS[i]);
+    }
 
-    // Initialize motor phase pins
-    gpio_init(A_PIN);
-    gpio_init(B_PIN);
+    for (size_t i = 0; i < (sizeof(GREEN_RED_GPIOS) / sizeof(uint8_t)); ++i) {
+        gpio_set_dir(GREEN_RED_GPIOS[i], GPIO_OUT);
+    }
 
-    // Set up GPIO pins as output from pico
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_set_dir(RESET_PIN, GPIO_OUT);
-    gpio_set_dir(DC_PIN, GPIO_OUT);
-    gpio_set_dir(MAG_POWER, GPIO_OUT);
+    // gpio_pull_down(MAG_SW);
+    for (size_t i = 0; i < (sizeof(GREEN_RED_GPIOS) / sizeof(uint8_t)); ++i) {
+        gpio_put(GREEN_RED_GPIOS[i], HIGH);
+    }
 
-    gpio_set_dir(MAG_SW, GPIO_IN);
-    gpio_set_dir(A_PIN, GPIO_IN);
-    gpio_set_dir(B_PIN, GPIO_IN);
-
-    gpio_set_dir(MOTOR_CNTRL_CLOCK, GPIO_OUT);
-    gpio_set_dir(MOTOR_CNTRL_CUNTR, GPIO_OUT);
-
-    gpio_pull_down(MAG_SW);
-
-    gpio_set_function(CS_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(CLK_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(MOSI_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(MISO_PIN, GPIO_FUNC_SPI);
-
-    gpio_set_function(0, GPIO_FUNC_I2C);
-    gpio_set_function(1, GPIO_FUNC_I2C);
-
-    i2c_slave_init(i2c0, 0x10, handleI2Cinterrupt);
-
-    gpio_put(DC_PIN, HIGH);
-    gpio_put(RESET_PIN, HIGH);
-    gpio_put(MAG_POWER, HIGH); // Magnetic switch power rail
-
-    gpio_set_irq_enabled_with_callback(MAG_SW, GPIO_IRQ_EDGE_RISE, true, &gpio_int_callback);
-    gpio_set_irq_enabled_with_callback(A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
-    gpio_set_irq_enabled_with_callback(B_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_int_callback);
 }
 
 // Get a font bitmap for a specific character
@@ -439,22 +448,9 @@ int main()
     printf("lab2 Hello!\n");
     // Initialize hardware
     hardware_init();
-    // Initialize SPI
-    spi_init(spi0, 145000000); // SPI0 at 1kHz
-    spi_set_format(
-        spi0,
-        8, // 8 bits per transfer
-        SPI_CPOL_0,
-        SPI_CPHA_0,
-        SPI_MSB_FIRST
-    );
-
-    LCD_2IN_Init();
-	memset(FRAMEBUFFER, 0, sizeof(uint16_t) * WIDTH * HEIGHT);
-    LCD_2IN_Clear(0xFFFF);
     // Create idle task for heartbeat
     myAssert(xTaskCreate(heartbeat, "heartbeat", 128, NULL, tskIDLE_PRIORITY, NULL) == pdPASS);
-    myAssert(xTaskCreate(drawScreen, "draw", 2048, NULL, 1, NULL) == pdPASS);
+    // myAssert(xTaskCreate(drawScreen, "draw", 2048, NULL, 1, NULL) == pdPASS);
     //myAssert(xTaskCreate(getSpeed, "speed", 256, NULL, 2, NULL) == pdPASS);
     //myAssert(xTaskCreate(getBatteryInfo, "bat", 256, NULL, 3, NULL) == pdPASS);
     //xTaskCreate(changeSpeed, "speed", 256, NULL, 2, NULL);
